@@ -1,61 +1,46 @@
-from fastapi import FastAPI, HTTPException
+# Phase3/integration_main.py
+from fastapi import FastAPI
 from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-import sys
+import uvicorn
 import os
+import sys
 
-# Adjust paths to import Phase 1 and Phase 2
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../Phase1")))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../Phase2")))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from model import summarize  # Phase 1 summarization
-from bias_model import detect_bias  # Phase 2 bias detection
 
-# Initialize FastAPI
-app = FastAPI(title="Integrated News Analysis API")
+from Phase1.download import download_model
 
-# ✅ Enable CORS for Chrome Extension
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # (Optional: Restrict to chrome-extension://<your-id>)
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+download_model()
 
-# Request body model
-class AnalyzeNewsRequest(BaseModel):
+# ---- Import summarization model ----
+from Phase1.model import summarize
+
+# ---- Import bias detection model ----
+from Phase2.bias_model import detect_bias
+
+app = FastAPI()
+
+# Request body format
+class NewsInput(BaseModel):
     text: str
     max_length: int = 150
     min_length: int = 30
 
-# Response model
-class AnalyzeNewsResponse(BaseModel):
-    summary: str
-    bias_scores: dict
-
-# API endpoint
-@app.post("/analyze_news", response_model=AnalyzeNewsResponse)
-async def analyze_news(req: AnalyzeNewsRequest):
-    if not req.text.strip():
-        raise HTTPException(status_code=400, detail="Text cannot be empty.")
-    
+@app.post("/analyze_news")
+def analyze_news(news: NewsInput):
     try:
-        # Run summarization
-        summary = summarize(
-            req.text,
-            max_length=req.max_length,
-            min_length=req.min_length
-        )
-        
-        # Run bias detection
-        bias_scores = detect_bias(req.text)
-        
-        return AnalyzeNewsResponse(summary=summary, bias_scores=bias_scores)
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Summarization
+        summary = summarize(news.text, max_length=news.max_length, min_length=news.min_length)
 
-@app.get("/")
-async def root():
-    return {"message": "Integrated API is running on port 8002!"}
+        # Bias Detection
+        bias_scores = detect_bias(news.text)
+
+        return {
+            "summary": summary,
+            "bias_scores": bias_scores
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8002)
