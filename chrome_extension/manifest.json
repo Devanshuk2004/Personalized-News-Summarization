@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "News Summarizer & Bias Detector",
+  "version": "1.0",
+  "description": "Summarizes news from the current page and detects bias.",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["http://127.0.0.1:8002/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
